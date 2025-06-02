@@ -5,7 +5,6 @@ venv/
 # Ignore Jupyter Notebook checkpoints
 .ipynb_checkpoints/
 # Ignore Python bytecode files
-.pyc
-# Ignore virtual environment directories    
+.pyc   
 # Ignore log files
 .log
