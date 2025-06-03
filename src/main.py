@@ -1,14 +1,14 @@
-from fastapi import FastAPI, Query, HTTPException #framework for building APIs
-import pandas as pd #data manipulation and analysis
-from pydantic import BaseModel #data validation and settings management
-from typing import Dict, Union #
+from fastapi import FastAPI, Query, HTTPException
+import pandas as pd
+from pydantic import BaseModel
+from typing import Dict, Union
 import requests
 import json
 import re
 import joblib
 import numpy as np
 
-app = FastAPI() #start the FastAPI application
+app = FastAPI()
 
 model = joblib.load("admission_model.pkl")
 scaler = joblib.load("scaler.pkl") 
@@ -43,11 +43,17 @@ def predict_admission(input: AdmissionInput) -> Union[Dict[str, float], Dict[str
     else:
         return {"admission_probability": round(float(admission_prob), 2)}
 
-# Load CSV once
-df = pd.read_csv("WorldUniRank23.csv")
+df = pd.read_excel("UpdatedWorldUniRank23.xlsx")
 
 def safe(val):
     return "Unavailable" if pd.isna(val) or val in [None, ""] else val
+
+def safe(value):
+    if pd.isna(value):
+        return "Unavailable"
+    if isinstance(value, (np.integer, np.floating)):
+        return value.item()  # Convert numpy types to native Python types
+    return str(value)
 
 @app.get("/lookup")
 def lookup_university(name: str = Query(...)):
@@ -65,25 +71,22 @@ def lookup_university(name: str = Query(...)):
             else:
                 avg_rank = int(rank_str)
 
-            if avg_rank <= 50:
+            if avg_rank <= 100:
                 rating = 5
-            elif avg_rank <= 100:
-                rating = 4.5
-            elif avg_rank <= 200:
+            elif avg_rank <= 250:
                 rating = 4
-            elif avg_rank <= 300:
-                rating = 3.5
-            elif avg_rank <= 400:
+            elif avg_rank <= 500:
                 rating = 3
             else:
-                rating = 2.5
+                rating = 2
+
         except Exception:
-            rating = "Unavailable"
+            rating = 1
 
         return {
             "University": safe(name),
             "Country": country,
-            "Rating (out of 5)": rating,
+            "Rating (out of 5)": int(rating),
             "Details": {
                 "Rank": safe(row.get("Rank")),
                 "No of Students": safe(row.get("No of student")),
