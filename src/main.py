@@ -7,11 +7,18 @@ import json
 import re
 import joblib
 import numpy as np
+import shap
+from pathlib import Path
 
 app = FastAPI()
 
-model = joblib.load("admission_model.pkl")
-scaler = joblib.load("scaler.pkl") 
+BASE_DIR = Path(__file__).resolve().parent.parent
+
+model = joblib.load(BASE_DIR / "models" / "admission_model.pkl")
+scaler = joblib.load(BASE_DIR / "models" / "scaler.pkl")
+
+# Load SHAP explainer once
+explainer = shap.Explainer(model.predict, masker=shap.maskers.Independent(data=np.zeros((1, 7))))
 
 class AdmissionInput(BaseModel):
     gre_score: float
@@ -36,23 +43,62 @@ def predict_admission(input: AdmissionInput) -> Union[Dict[str, float], Dict[str
 
     scaled_data = scaler.transform(data)
     prediction = model.predict(scaled_data)[0]
-    admission_prob = prediction * 100  # convert to percentage
+    admission_prob = prediction * 100
 
     if admission_prob < 0:
         return {"message": "Admission unlikely: predicted score is negative."}
     else:
         return {"admission_probability": round(float(admission_prob), 2)}
 
-df = pd.read_excel("UpdatedWorldUniRank23.xlsx")
+@app.post("/explain_prediction")
+def explain_prediction(input: AdmissionInput):
+    data = np.array([[
+        input.gre_score, input.toefl_score, input.university_rating,
+        input.sop, input.lor, input.cgpa, input.research
+    ]])
 
-def safe(val):
-    return "Unavailable" if pd.isna(val) or val in [None, ""] else val
+    scaled_data = scaler.transform(data)
+    shap_values = explainer(scaled_data)
+
+    feature_names = ["GRE Score", "TOEFL Score", "University Rating", "SOP", "LOR", "CGPA", "Research"]
+    shap_value_array = shap_values.values[0]
+    base_value = shap_values.base_values[0]
+    final_prediction = model.predict(scaled_data)[0]
+
+    feature_contributions = dict(zip(feature_names, shap_value_array))
+
+    recommendations = []
+    for feature, value in feature_contributions.items():
+        if value < -0.05:
+            if feature == "GRE Score":
+                recommendations.append("Consider retaking the GRE to improve your score.")
+            elif feature == "TOEFL Score":
+                recommendations.append("Improve your TOEFL score to boost your chances.")
+            elif feature == "University Rating":
+                recommendations.append("Applying to better-rated universities could help.")
+            elif feature == "SOP":
+                recommendations.append("Enhance the clarity or relevance of your SOP.")
+            elif feature == "LOR":
+                recommendations.append("Stronger Letters of Recommendation may help.")
+            elif feature == "CGPA":
+                recommendations.append("A higher CGPA could significantly improve your profile.")
+            elif feature == "Research":
+                recommendations.append("Gaining research experience can positively influence your chances.")
+
+    return {
+        "base_prediction": round(float(base_value * 100), 2),
+        "final_prediction": round(float(final_prediction * 100), 2),
+        "shap_values": feature_contributions,
+        "recommendations": recommendations or ["Your profile looks strong based on current data."]
+    }
+
+df = pd.read_excel(BASE_DIR / "data" / "UpdatedWorldUniRank23.xlsx")
 
 def safe(value):
     if pd.isna(value):
         return "Unavailable"
     if isinstance(value, (np.integer, np.floating)):
-        return value.item()  # Convert numpy types to native Python types
+        return value.item()
     return str(value)
 
 @app.get("/lookup")
@@ -101,7 +147,6 @@ def lookup_university(name: str = Query(...)):
                 "International Outlook Score": safe(row.get("International Outlook Score"))
             }
         }
-
     else:
         return {
             "University": name,
@@ -111,45 +156,6 @@ def lookup_university(name: str = Query(...)):
                 "Note": "University not found in database. Assigned default lowest rating."
             }
         }
-
-class SOPRequest(BaseModel):
-    sop_text: str
-
-class SOPScoreResponse(BaseModel):
-    individual_scores: Dict[str, float]
-    average_score: float
-
-def build_prompt(sop_text: str) -> str:
-    return f"""
-You are an expert admission reviewer. Evaluate the following Statement of Purpose based on these 7 metrics (each out of 5):
-
-1. Clarity & Coherence
-2. Grammar & Language Quality
-3. Purpose & Goal Alignment
-4. Motivation & Passion
-5. Relevance of Background
-6. Research Fit
-7. Originality & Insight
-
-Respond ONLY in JSON format with the metric names as keys and their scores as values. For example:
-
-{{
-  "Clarity & Coherence": 4.5,
-  "Grammar & Language Quality": 5,
-  "Purpose & Goal Alignment": 4,
-  "Motivation & Passion": 4.5,
-  "Relevance of Background": 4,
-  "Research Fit": 3.5,
-  "Originality & Insight": 4
-}}
-
-SOP:
-\"\"\"
-{sop_text}
-\"\"\"
-"""
-
-OLLAMA_URL = "http://localhost:11434/api/generate"
 
 class SOPRequest(BaseModel):
     sop: str
@@ -180,9 +186,8 @@ Respond ONLY in JSON format with the metric names as keys and their scores as va
 }}
 
 SOP:
-\"\"\"{data.sop}\"\"\"
+"""{data.sop}"""
 """
-
     try:
         res = requests.post("http://localhost:11434/api/generate", json={
             "model": "mistral",
@@ -192,14 +197,12 @@ SOP:
         res.raise_for_status()
         output = res.json()["response"]
 
-        # Extract JSON object from the response
         match = re.search(r"\{.*\}", output, re.DOTALL)
         if not match:
             raise ValueError("No JSON object found in LLM response.")
 
         scores_dict = json.loads(match.group())
-        
-        # Fix any known misspellings or inconsistent keys if needed
+
         corrected_keys = {
             "Clairty & Coherenc": "Clarity & Coherence",
             "Relevance to subject": "Relevance of Background",
