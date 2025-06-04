@@ -186,8 +186,9 @@ Respond ONLY in JSON format with the metric names as keys and their scores as va
 }}
 
 SOP:
-"""{data.sop}"""
+'''{data.sop}'''
 """
+
     try:
         res = requests.post("http://localhost:11434/api/generate", json={
             "model": "mistral",
@@ -197,11 +198,15 @@ SOP:
         res.raise_for_status()
         output = res.json()["response"]
 
-        match = re.search(r"\{.*\}", output, re.DOTALL)
+        # Use a non-greedy regex to extract the first JSON object
+        match = re.search(r"\{.*?\}", output, re.DOTALL)
         if not match:
-            raise ValueError("No JSON object found in LLM response.")
+            raise ValueError("No JSON object found in LLM response. Response was: " + output)
 
-        scores_dict = json.loads(match.group())
+        try:
+            scores_dict = json.loads(match.group())
+        except json.JSONDecodeError as json_err:
+            raise ValueError(f"Failed to parse JSON from LLM response: {json_err}. Response was: {output}")
 
         corrected_keys = {
             "Clairty & Coherenc": "Clarity & Coherence",
