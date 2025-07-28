@@ -92,12 +92,7 @@ graduate-admission/
 
 ## 📸 Project Walkthrough
 
-
-
-
-
-
-
+https://github.com/user-attachments/assets/7c1ad5bc-b2e8-444e-835c-8b421d905c67
 
 ---
 
