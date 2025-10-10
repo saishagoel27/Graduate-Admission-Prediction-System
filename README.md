@@ -19,7 +19,6 @@ A full-stack machine learning web app to predict your chances of getting into a 
 
 * **Frontend**: Streamlit
 * **Backend**: FastAPI
-* **ML Model**: Scikit-learn (Linear Regression)
 * **Explainability**: SHAP
 * **SOP Evaluation**: Gemini (via Google Generative AI)
 
