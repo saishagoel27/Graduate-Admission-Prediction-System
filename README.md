@@ -56,7 +56,7 @@ GEMINI_API_KEY = "your-google-gemini-api-key"
 
 > 🔑 Get your API key from: [Google AI Studio](https://makersuite.google.com/app/apikey)
 
-### 5. Run the App
+### 5. Run the App on Git Bash
 
 ```bash
 1. source venv/Scripts/activate
