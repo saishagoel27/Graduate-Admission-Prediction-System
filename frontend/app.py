@@ -12,6 +12,16 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="expanded"
 )
+# Load Gemini API Key from secrets
+try:
+    GEMINI_API_KEY = st.secrets["GEMINI_API_KEY"]
+    print(f"✅ API Key loaded successfully! Length: {len(GEMINI_API_KEY)}")  # Debug line
+except Exception as e:
+    st.error("⚠️ Gemini API key not found in secrets.toml")
+    st.info("Please create a .streamlit/secrets.toml file with your GEMINI_API_KEY")
+    GEMINI_API_KEY = None
+    print(f"❌ Error loading API key: {e}")  
+
 
 # Custom CSS for better styling
 st.markdown("""
@@ -284,8 +294,16 @@ if st.session_state.page == 'main':
                         exp_resp = requests.post("http://localhost:8000/explain", json=profile_data)  
                         explanation = exp_resp.json()
                         
-                        sop_resp = requests.post("http://localhost:8000/sop", json={"sop": sop_text})
-                        sop_scores = sop_resp.json()
+                        # Passing API key with SOP request
+                        if GEMINI_API_KEY:
+                            sop_resp = requests.post("http://localhost:8000/sop", json={
+                                "sop": sop_text,
+                                "api_key": GEMINI_API_KEY
+                            })
+                            sop_scores = sop_resp.json()
+                        else:
+                            st.error("⚠️ Cannot analyze SOP - Gemini API key not configured")
+                            sop_scores = {"scores": {}, "average": 0}
                         
                         st.session_state.prediction_data = {
                             'prediction': prediction,
@@ -294,7 +312,6 @@ if st.session_state.page == 'main':
                             'profile_data': profile_data,
                             'sop_text': sop_text
                         }
-                        
                         prob = prediction['probability']
                         
                         if prob >= 70:
