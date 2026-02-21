@@ -26,6 +26,7 @@ class StudentProfile(BaseModel):
 
 class SOPText(BaseModel):
     sop: str
+    api_key: str
 
 @app.post("/predict")
 def predict_admission(profile: StudentProfile):
@@ -120,8 +121,11 @@ def get_university_rating(name: str = Query(...)):
 
 @app.post("/sop")
 def evaluate_sop(data: SOPText):
-    api_key = os.getenv("GEMINI_API_KEY")
-    if not api_key:
-        raise HTTPException(status_code=500, detail="Gemini API key not configured")
+    if not data.api_key or data.api_key == "":
+        raise HTTPException(status_code=400, detail="Gemini API key not provided")
     
-    return score_sop(data.sop, api_key)
+    try:
+        result = score_sop(data.sop, data.api_key)
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"SOP scoring failed: {str(e)}")
