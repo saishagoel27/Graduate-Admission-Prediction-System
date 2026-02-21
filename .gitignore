@@ -11,6 +11,7 @@ __pycache__/
 .ipynb_checkpoints/
 
 # Streamlit secrets
+.streamlit/
 secrets.toml
 
 # Environment/config
@@ -26,3 +27,4 @@ Thumbs.db
 
 # VSCode project settings
 .vscode/
+
