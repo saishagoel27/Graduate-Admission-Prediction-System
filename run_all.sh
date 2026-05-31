@@ -9,17 +9,17 @@ echo "✅ Pip used: $(which pip)"
 pip show streamlit || { echo "❌ streamlit NOT FOUND in venv. Installing..."; pip install streamlit; }
 pip show fastapi || { echo "❌ fastapi NOT FOUND. Installing..."; pip install fastapi uvicorn; }
 
-# Check Gemini API Key
-if [ -z "$GEMINI_API_KEY" ]; then
-  echo "⚠️  GEMINI_API_KEY not set. Attempting to load from .streamlit/secrets.toml..."
+# Check Groq API Key
+if [ -z "$GROQ_API_KEY" ]; then
+  echo "⚠️  GROQ_API_KEY not set. Attempting to load from .streamlit/secrets.toml..."
   
   # Try to load from secrets.toml
   if [ -f ".streamlit/secrets.toml" ]; then
-    export GEMINI_API_KEY=$(grep "GEMINI_API_KEY" .streamlit/secrets.toml | cut -d '"' -f 2)
+    export GROQ_API_KEY=$(grep "GROQ_API_KEY" .streamlit/secrets.toml | cut -d '"' -f 2)
     echo "✅ Loaded API key from secrets.toml"
   else
     echo "❌ .streamlit/secrets.toml not found."
-    echo "Please create it with: GEMINI_API_KEY = \"your-key\""
+    echo "Please create it with: GROQ_API_KEY = \"your-key\""
     exit 1
   fi
 fi
