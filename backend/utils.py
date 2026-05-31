@@ -1,22 +1,19 @@
-import google.generativeai as genai
 import json
 import re
+import requests
 
 def score_sop(text, api_key):
-    # Validate API key first
+    """Score SOP using Groq API via direct HTTP requests"""
     if not api_key or api_key == "":
-        raise ValueError("GEMINI_API_KEY is not set or empty")
-    
+        raise ValueError("GROQ_API_KEY is not set or empty")
+
     try:
-        genai.configure(api_key=api_key)
-        model = genai.GenerativeModel("gemini-1.5-flash")
-        
         prompt = f"""Rate this Statement of Purpose on 7 criteria (1-5 scale).
 Return ONLY a valid JSON object with no additional text or markdown formatting.
 
 Criteria to rate:
 1. Clarity & Coherence
-2. Grammar & Language Quality  
+2. Grammar & Language Quality
 3. Purpose & Goal Alignment
 4. Motivation & Passion
 5. Relevance of Background
@@ -28,58 +25,71 @@ Expected JSON format (no markdown, no code blocks):
 
 SOP Text:
 {text}"""
+
+        # Use direct HTTP requests instead of Groq SDK
+        url = "https://api.groq.com/openai/v1/chat/completions"
+        headers = {
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json"
+        }
         
-        response = model.generate_content(prompt)
-        response_text = response.text.strip()
+        models_to_try = ["llama-3.3-70b-versatile", "llama-3.1-8b-instant", "mixtral-8x7b-32768"]
         
-        print(f"Raw Gemini Response: {response_text}")  # Debug logging
+        response_text = None
+        last_error = None
         
-        # Try to extract JSON - handle markdown code blocks
-        json_match = re.search(r'```json\s*(.*?)\s*```', response_text, re.DOTALL)
+        for model in models_to_try:
+            try:
+                payload = {
+                    "model": model,
+                    "messages": [{"role": "user", "content": prompt}],
+                    "temperature": 0.7,
+                    "max_tokens": 1024
+                }
+                
+                response = requests.post(url, headers=headers, json=payload, timeout=30)
+                
+                if response.status_code == 200:
+                    data = response.json()
+                    response_text = data["choices"][0]["message"]["content"].strip()
+                    if response_text:
+                        break
+                else:
+                    last_error = f"HTTP {response.status_code}: {response.text}"
+            except Exception as e:
+                last_error = str(e)
+                continue
+
+        if not response_text:
+            return {"scores": {}, "average": 0, "error": f"Groq API failed: {last_error}"}
+
+        # Extract JSON from response
+        json_match = re.search(r'```json\s*(.+?)\s*```', response_text, re.DOTALL)
         if json_match:
             json_str = json_match.group(1)
         else:
-            # Try without code blocks
-            json_match = re.search(r'\{.*?\}', response_text, re.DOTALL)
-            if json_match:
-                json_str = json_match.group()
+            start = response_text.find('{')
+            end = response_text.rfind('}')
+            if start != -1 and end != -1:
+                json_str = response_text[start:end+1]
             else:
-                raise ValueError(f"No valid JSON found in response: {response_text[:200]}")
-        
-        scores = json.loads(json_str)
-        
-        # Validate that we got all 7 scores
-        expected_criteria = [
-            "Clarity & Coherence",
-            "Grammar & Language Quality",
-            "Purpose & Goal Alignment",
-            "Motivation & Passion",
-            "Relevance of Background",
-            "Research Fit",
-            "Originality & Insight"
-        ]
-        
-        if len(scores) != 7:
-            print(f"Warning: Expected 7 scores, got {len(scores)}")
-        
-        avg_score = sum(scores.values()) / len(scores)
-        
-        return {
-            "scores": scores,
-            "average": round(avg_score, 2)
-        }
-        
-    except json.JSONDecodeError as e:
-        print(f"JSON Parse Error: {e}")
-        return {
-            "scores": {},
-            "average": 0,
-            "error": f"Failed to parse JSON: {str(e)}"
-        }
+                json_str = response_text
+
+        # Parse JSON
+        try:
+            scores = json.loads(json_str)
+        except:
+            return {"scores": {}, "average": 0, "error": "Failed to parse JSON response"}
+
+        if not isinstance(scores, dict) or not scores:
+            return {"scores": {}, "average": 0, "error": "Invalid scores format"}
+
+        try:
+            avg_score = sum(float(v) for v in scores.values()) / len(scores)
+        except:
+            return {"scores": scores, "average": 0, "error": "Score values are not numeric"}
+
+        return {"scores": scores, "average": round(avg_score, 2)}
+    
     except Exception as e:
-        print(f"SOP Scoring Error: {e}")
-        return {
-            "scores": {},
-            "average": 0,
-            "error": str(e)
-        }
+        return {"scores": {}, "average": 0, "error": f"SOP scoring error: {str(e)}"}
