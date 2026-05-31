@@ -1,106 +1,144 @@
-# 🎓 Graduate Admission Prediction System
+# Graduate Admission Prediction System
 
-A full-stack machine learning web app to predict your chances of getting into a graduate program, explain feature contributions, and evaluate your Statement of Purpose (SOP) using Gemini AI.
+Predicts your chances of getting into grad school using machine learning. Also analyzes your Statement of Purpose and tells you what to improve.
 
----
+## What it does
 
-## 🌟 Features
+- Predicts admission probability based on GRE, TOEFL, CGPA, etc.
+- Shows which factors help or hurt your chances (SHAP analysis)
+- Evaluates your SOP using AI and gives scores on 7 criteria
+- Suggests improvements for weak areas
+- Auto-fills university ratings from world rankings
 
-* 🔮 **Admission Prediction** using a trained ML model
-* 🧠 **SHAP Explainability** for feature impact
-* 📝 **SOP Evaluation** with Gemini AI (via Google Generative AI)
-* 📊 Smart Recommendations to improve your profile
-* 🏫 University Rating Auto-Fill based on world rank
-* 📄 Downloadable summary report
+## Tech used
 
----
+- **Frontend**: Streamlit
+- **Backend**: FastAPI  
+- **ML Model**: Trained on admission dataset
+- **Explainability**: SHAP
+- **SOP Analysis**: Groq API (LLaMA models)
 
-## 🛠 Tech Stack
+## Setup
 
-* **Frontend**: Streamlit
-* **Backend**: FastAPI
-* **Explainability**: SHAP
-* **SOP Evaluation**: Gemini (via Google Generative AI)
+### Prerequisites
 
----
+- Python 3.8+
+- Groq API key (free at https://console.groq.com)
 
-## 🚀 How to Run Locally
+### Installation
 
-### 1. Clone the Repository
-
+1. Clone the repo
 ```bash
 git clone https://github.com/saishagoel27/Graduate-Admission-Prediction-System
 cd Graduate-Admission-Prediction-System
 ```
 
-### 2. Create and Activate a Virtual Environment
-
+2. Create virtual environment
 ```bash
 python -m venv venv
-source venv/bin/activate  # Windows: venv\Scripts\activate
+
+# On Windows
+venv\Scripts\activate
+
+# On Mac/Linux  
+source venv/bin/activate
 ```
 
-### 3. Install Requirements
-
+3. Install dependencies
 ```bash
 pip install -r requirements.txt
 ```
 
-### 4. Set Up Secrets
+4. Add your Groq API key
 
-Create a `secrets.toml` file:
-
+Create `.streamlit/secrets.toml`:
 ```toml
-GEMINI_API_KEY = "your-google-gemini-api-key"
+GROQ_API_KEY = "your-api-key-here"
 ```
 
-> 🔑 Get your API key from: [Google AI Studio](https://makersuite.google.com/app/apikey)
+### Running the app
 
-### 5. Run the App on Git Bash
-
+**Option 1: Using the script (Git Bash/Linux/Mac)**
 ```bash
-1. source venv/Scripts/activate
-2. export GEMINI_API_KEY="your-key-here"
-3. chmod +x run_all.sh
-4. ./run_all.sh or bash run_all.sh
+chmod +x run_all.sh
+./run_all.sh
 ```
 
-* FastAPI backend runs on: `http://localhost:8000`
-* Streamlit app runs on: `http://localhost:8501`
+**Option 2: Manual (Windows/any OS)**
 
----
+Terminal 1 - Backend:
+```bash
+uvicorn backend.main:app --reload
+```
 
-## 📂 Project Structure
+Terminal 2 - Frontend:
+```bash
+streamlit run frontend/app.py
+```
+
+Open http://localhost:8501 in your browser.
+
+## How to use
+
+1. Fill in your academic details (GRE, TOEFL, CGPA)
+2. Enter university name (optional - auto-fills rating)
+3. Paste your Statement of Purpose
+4. Click "Predict My Admission Chances"
+5. Check the sidebar for detailed analysis:
+   - SHAP Analysis: see what's helping/hurting
+   - SOP Analysis: get scores on clarity, grammar, etc.
+   - Recommendations: actionable tips to improve
+
+## Project structure
 
 ```
-graduate-admission/
-├── backend/           # FastAPI endpoints
-│   ├── main.py
-│   ├── utils.py       # Gemini SOP scoring, SHAP, preprocess
-│   └── models/        # Trained model .pkl files
+.
+├── backend/
+│   ├── main.py              # FastAPI routes
+│   ├── utils.py             # SOP scoring logic
+│   └── models/              # Trained ML models
 ├── frontend/
-│   └── app.py         # Streamlit UI
-├── data/              # Admission dataset, university ranks
-├── notebooks/         # Jupyter notebook for training
-├── run_all.sh         # Script to run both frontend + backend
+│   └── app.py               # Streamlit UI
+├── data/
+│   ├── admission_data.csv   # Training data
+│   └── UpdatedWorldUniRank23.xlsx
+├── notebooks/
+│   └── admission.ipynb      # Model training notebook
+├── .streamlit/
+│   └── secrets.toml         # API keys (don't commit!)
 ├── requirements.txt
-└── secrets.toml
+└── run_all.sh
 ```
 
----
-
-## 📸 Project Walkthrough
+## Demo
 
 https://github.com/user-attachments/assets/7c1ad5bc-b2e8-444e-835c-8b421d905c67
 
----
+## Notes
 
-## 📄 License
+- The SOP analysis uses Groq's LLaMA models (free tier available)
+- Predictions are based on historical data - actual results may vary
+- University ratings are from 2023 world rankings
 
-Under MIT License - free to use and modify
+## Troubleshooting
 
----
+**Backend won't start:**
+- Make sure port 8000 isn't in use
+- Check if all dependencies installed correctly
 
-## 🙋‍♂️ Authors
+**SOP analysis fails:**
+- Verify your Groq API key is correct
+- Check your internet connection
+- Free tier has rate limits - wait a bit and retry
 
-Built by Anishaa and Saisha 
+**Frontend can't connect to backend:**
+- Ensure backend is running on port 8000
+- Check firewall settings
+
+## License
+
+MIT License - do whatever you want with it
+
+## Authors
+
+Built by Anishaa and Saisha for NTCC In-House Practical
