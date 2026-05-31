@@ -40,6 +40,17 @@ def predict_admission(profile: StudentProfile):
     
     return {"probability": max(0, round(prob, 2))}
 
+
+@app.get("/health")
+def health_check():
+    """Basic health endpoint for readiness checks."""
+    groq_present = bool(os.getenv("GROQ_API_KEY"))
+    return {
+        "status": "ok",
+        "backend": "fastapi",
+        "groq_key_configured": groq_present
+    }
+
 @app.post("/explain")
 def explain_prediction(profile: StudentProfile):
     features = np.array([[
@@ -122,10 +133,17 @@ def get_university_rating(name: str = Query(...)):
 @app.post("/sop")
 def evaluate_sop(data: SOPText):
     if not data.api_key or data.api_key == "":
-        raise HTTPException(status_code=400, detail="Gemini API key not provided")
-    
+        raise HTTPException(status_code=400, detail="Groq API key not provided")
+
+    # Always return a consistent JSON structure to the frontend so UI doesn't crash
     try:
         result = score_sop(data.sop, data.api_key)
+        # Ensure keys exist
+        if not isinstance(result, dict):
+            return {"scores": {}, "average": 0, "error": "Invalid result from scorer"}
+        result.setdefault("scores", {})
+        result.setdefault("average", 0)
         return result
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"SOP scoring failed: {str(e)}")
+        # Return an error object rather than raising HTTPException to keep frontend stable
+        return {"scores": {}, "average": 0, "error": f"SOP scoring failed: {str(e)}"}
